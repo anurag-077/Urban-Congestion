@@ -172,23 +172,79 @@ if water_polygons:
                        tooltip=folium.GeoJsonTooltip(["area"], aliases=["Water (m²):"])).add_to(m)
 
 # Roads - Neon Glow (Single Clean Layer)
+# === ROADS - Neon Glow + Smart Width Tooltip ===
+# === ROADS - Soft & Premium Neon Glow (Lower Brightness) ===
 roads_layer = folium.FeatureGroup(name="Roads (Neon Glow)", show=True)
 roads_geojson = {"type": "FeatureCollection", "features": []}
+
 for rd in road_details:
     line = rd["geom"]
-    if line.is_empty or line.length < 5: continue
+    if line.is_empty or line.length < 5:
+        continue
+
+    length_str = f"Length: {line.length:.0f} m"
+    width = rd["width"]
+    source = rd["width_source"]
+
+    width_str = ""
+    if source in ("osm", "lanes"):
+        if source == "osm":
+            width_str = f"Width: {width:.1f} m (from OSM)".replace(".0 m", " m")
+        else:
+            width_str = f"Width: {width:.1f} m (estimated from lanes)".replace(".0 m", " m")
+
+    tooltip_lines = [length_str]
+    if width_str:
+        tooltip_lines.append(width_str)
+    tooltip_html = "<br>".join(tooltip_lines)
+
     coords = [inv.transform(x, y) for x, y in line.coords]
     roads_geojson["features"].append({
-        "type": "Feature", "geometry": {"type": "LineString", "coordinates": coords},
-        "properties": {"length": f"{line.length:.0f}m"}
+        "type": "Feature",
+        "geometry": {"type": "LineString", "coordinates": coords},
+        "properties": {"info": tooltip_html}
     })
 
+# Soft & Elegant Neon (Lower Brightness, More Professional)
 if roads_geojson["features"]:
-    folium.GeoJson(roads_geojson, style_function=lambda x: {"color": "#ff0040", "weight": 36, "opacity": 0.6}).add_to(roads_layer)
-    folium.GeoJson(roads_geojson, style_function=lambda x: {"color": "#ff4080", "weight": 22, "opacity": 0.8}).add_to(roads_layer)
-    folium.GeoJson(roads_geojson, style_function=lambda x: {"color": "#ffffff", "weight": 12, "opacity": 0.95}).add_to(roads_layer)
-    folium.GeoJson(roads_geojson, style_function=lambda x: {"color": "#ff1744", "weight": 7, "opacity": 1.0},
-                   tooltip=folium.GeoJsonTooltip(["length"], aliases=["Length:"])).add_to(roads_layer)
+    glow_styles = [
+        {"color": "#ff4081", "weight": 32, "opacity": 0.25},   # Very soft outer glow
+        {"color": "#ff79b0", "weight": 20, "opacity": 0.40},   # Subtle mid glow
+        {"color": "#ffffff", "weight": 10, "opacity": 0.60},   # Soft white core
+        {"color": "#ff1744", "weight": 6,  "opacity": 1.00}    # Bright red line (thin!)
+    ]
+
+    # Outer soft layers
+    for style in glow_styles[:-1]:
+        folium.GeoJson(
+            roads_geojson,
+            style_function=lambda x, s=style: s
+        ).add_to(roads_layer)
+
+    # Final sharp line with tooltip
+    folium.GeoJson(
+        roads_geojson,
+        style_function=lambda x: glow_styles[-1],
+        tooltip=folium.GeoJsonTooltip(
+            fields=["info"],
+            aliases=[""],
+            style="""
+                background: #0f0f0f;
+                color: #00ff88;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 12px 16px;
+                border-radius: 12px;
+                border: 2px solid #00ff88;
+                box-shadow: 0 0 20px rgba(0,255,136,0.5);
+                font-family: 'Segoe UI', sans-serif;
+                text-align: left;
+                line-height: 1.7;
+            """,
+            sticky=True
+        )
+    ).add_to(roads_layer)
+
 roads_layer.add_to(m)
 
 folium.CircleMarker([lat, lng], radius=16, color="#ffd700", fillColor="#ff6b00", weight=5,
